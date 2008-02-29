@@ -1,0 +1,3 @@
+name = MultiBlock
+description = Allows the creation of multiple instances of blocks
+version = stable
