@@ -1,53 +1,74 @@
 <?php
 // $Id$
-/*
- * Implementation of hook_menu
+
+/**
+ * Implementation of hook_menu().
  */
-function multiblock_menu($may_cache) {
+function multiblock_menu() {
   $items = array();
-  if ($may_cache) {
-    $items[] = array(
-        'path' => 'admin/build/multiblock',
-        'title' => t('Block Instances'),
-        'description' => t('Create and delete instances of blocks.'),
-        'callback' =>  'multiblock_general',
-        'access' => user_access('administer blocks'),
-        'type' => MENU_NORMAL_ITEM,
-    );
-    $items[] = array(
-      'path' => 'multiblock/delete',
-      'title' => t('Delete Block Instance'),
-      'callback' => 'multiblock_delete',
-      'access' => user_access('administer blocks'),
-      'type' => MENU_CALLBACK,
-    );
-  }
-  else {
-  }
+  $items['admin/build/block/instances'] = array(
+    'title' => 'Instances',
+    'description' => t('Create and delete instances of blocks.'),
+    'page callback' =>  'multiblock_general',
+    'access callback' => 'user_access',
+    'access arguments' => array('administer blocks'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => -1,
+  );
+  $items['admin/build/block/instances/delete'] = array(
+    'title' => 'Delete Block Instance',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('multiblock_delete_form'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer blocks'),
+    'type' => MENU_CALLBACK,
+  );
   return $items;
 }
 
-/*
- * Implementation of hook_block
+/**
+ * Implementation of hook_block().
  */
 function multiblock_block($op = 'list', $delta = 0, $edit = array()) {
   if ($op == 'list') {
-    //get all of the block instances that exist
-    $result = db_query("SELECT delta, title FROM {multiblock}");
-    $blocks = array();
-    //escape the titles and return an array of them keyed by their NEW deltas
-    while ($row = db_fetch_object($result)) {
-      $blocks[$row->delta] = array( 'info' => check_plain($row->title), );
+    // Get all of the block instances that exist.
+    $blocks = multiblock_get_block(NULL);
+    $list = array();
+    foreach ($blocks as $block) {
+      $list[$block->delta] = array('info' => check_plain($block->title));
     }
-    return $blocks;
+    return $list;
   }
-  //any op besides list we want to dispatch the call to its respective module
+  // Any op besides list we want to dispatch the call to its respective module.
   else if ($op == 'view' || $op == 'configure' || $op == 'save') {
     return multiblock_call_block($delta, $op, $edit);
   }
 }
 
-/*
+/**
+ * Fetch a given block from the multiblock database table.
+ * 
+ * @param $delta
+ *   Optional. Retreive a single block based on this delta. If none specified,
+ *   all multiblock instances are returned.
+ * @param $reset
+ *   Optional. Boolean value to reset the interal cache of this function.
+ */
+function multiblock_get_block($delta = NULL, $reset = FALSE) {
+  static $blocks;
+
+  if (!isset($blocks) || $reset) {
+    $blocks = array();
+    $result = db_query("SELECT * FROM {multiblock}");
+    while ($row = db_fetch_object($result)) {
+      $blocks[$row->delta] = $row;
+    }
+  }
+
+  return is_numeric($delta) ? $blocks[$delta] : $blocks;
+}
+
+/**
  * Dispatch a hook_block call to it's respective module. Paramater $delta
  * is the new multiblock delta that we're using and $op is the op we are
  * dispatching.
@@ -55,7 +76,7 @@ function multiblock_block($op = 'list', $delta = 0, $edit = array()) {
 function multiblock_call_block($delta, $op, $edit) {
   $result = db_query("SELECT module, orig_delta, delta, multi_settings FROM {multiblock} WHERE delta='%s'", $delta);
   if ($block_info = db_fetch_object($result)) {
-    //if this block is multiblock enabled, send it the delta of the block we're using
+    // If this block is multiblock enabled, send it the delta of the block we're using.
     if ($block_info->multi_settings == 1 ) {
       $edit['multiblock_delta'] = array(
           '#type' => 'value',
@@ -64,36 +85,31 @@ function multiblock_call_block($delta, $op, $edit) {
     }
     return module_invoke($block_info->module, 'block', $op, $block_info->orig_delta, $edit);
   }
-  //no such multiblock, shouldn't ever happen
+  // No such multiblock, shouldn't ever happen.
   return;
 }
 
-/*
- * Page callback for the "Manage Block Instances page"
+/**
+ * Page callback for the "Manage Block Instances page".
  */
 function multiblock_general() {
-  //fetch blocks directly from modules using block.module function
+  // Fetch blocks directly from modules using block.module function.
   $blocks = _block_rehash();
-  //sort blocks how we want them
+  // Sort blocks how we want them.
   usort($blocks, 'multiblock_block_sort');
-  
-  //fetch "Add Instance"  form
-  $form = drupal_get_form('multiblock_add_block', $blocks);
- 
-  //get an array of existing blocks
-  $result = db_query('SELECT * FROM {multiblock} ORDER BY title'); 
-  $multiblocks = array();
-  while ($multiblock = db_fetch_object($result)) {
-    $multiblocks[] = $multiblock;
-  }
-  
+
+  // Fetch "Add Instance" form.
+  $form = drupal_get_form('multiblock_add_form', $blocks);
+
+  // Get an array of existing blocks.
+  $multiblocks = multiblock_get_block(NULL, TRUE);
   return theme('multiblock_general', $form, $multiblocks);
 }
 
-/*
- * "Add Instance" form
+/**
+ * "Add Instance" form.
  */
-function multiblock_add_block($blocks) {
+function multiblock_add_form($form_state, $blocks) {
   $form = array();
   $form['title'] = array(
     '#type' => 'textfield',
@@ -102,14 +118,14 @@ function multiblock_add_block($blocks) {
     '#required' => TRUE,
   );
   
-  //turn $blocks into form options of block types
-  //remember we need the module and delta to be able to tell what kind of blocks
-  //we're talking about. 
+  // Turn $blocks into form options of block types.
+  // Remember we need the module and delta to be able to tell what kind of
+  // blocks we're talking about. 
   $options = array();
   foreach ($blocks as $block) {
-    //don't include multiblock module blocks in the list
+    // Don't include multiblock module blocks in the list.
     if ($block['module'] != 'multiblock') {
-      $options[$block['module'].'***MB***'.$block['delta']] = $block['info'];
+      $options[$block['module'] .'***MB***'. $block['delta']] = $block['info'];
     }
   }
   
@@ -126,100 +142,151 @@ function multiblock_add_block($blocks) {
   return $form;
 }
 
-/*
- * Call back that deletes the block instance with a delta of arg(2)
- * and redirects the user back to the "Manage Block Instances" form
- */
-function multiblock_delete() {
-  $multiblock_delta = arg(2);
-  $result = db_query('DELETE FROM {multiblock} WHERE delta=%d', (int)$multiblock_delta);
-  //if we actually deleted something
-  if (ctype_digit($multiblock_delta) && db_affected_rows() == 1) {
+function multiblock_delete_form($form_state, $delta) {
+  $block = multiblock_get_block($delta);
+
+  if (empty($block)) {
+    drupal_set_message(t('The multiblock with the delta @delta was not found.', array('@delta' => $delta)), 'error');
+    return array();
+  }
+
+  $form['delta'] = array('#type' => 'value', '#value' => $delta);
+  return confirm_form($form,
+    t('Delete the block instance %title?', array('%title' => $block->title)),
+    'admin/build/block/instances',
+    t('This will delete the instance of the block %title.', array('%title' => $block->title)),
+    t('Delete'), t('Cancel'));
+}
+
+function multiblock_delete_form_submit($form, &$form_state) {
+  if (multiblock_delete($form_state['values']['delta'])) {
     drupal_set_message(t('Block successfully deleted!'));
-    _block_rehash();
   }
   else {
     drupal_set_message(t('There was a problem deleting the block'));
   }
-  drupal_goto('admin/build/multiblock');
-  exit;
+  $form_state['redirect'] = 'admin/build/block/instances';
 }
 
-/*
- * Validate "Add Block Instance" form
+
+/**
+ * Add a multiblock instance.
+ *
+ * @param $original_block
+ *   The original block for which an instance is being created.
+ * @param $block_instance
+ *   An object contain information about the particular block instance.
+ * @return
+ *   The delta of the newly added block.
  */
-function multiblock_add_block_validate($form_id, $form_values) {
-  //make sure we are getting a valid block to add
-  if (!preg_match('/^.+\*\*\*MB\*\*\*.+$/', $form_values['block'])) {
+function multiblock_add($original_block, $block_instance) {
+  // Create new delta for block instance.
+  $sql = "INSERT INTO {multiblock}
+          (title, module, orig_delta, multi_settings)
+          VALUES ('%s', '%s', '%s', %d)";
+  $result = db_query($sql, $block_instance->title, $original_block->module, $original_block->delta, $block_instance->mb_enbabled);
+  return db_last_insert_id('multiblock', 'delta');
+}
+
+/**
+ * Delete a multiblock instance.
+ */
+function multiblock_delete($multiblock_delta) {
+  $result = db_query('DELETE FROM {multiblock} WHERE delta = %d', (int)$multiblock_delta);
+  if (ctype_digit($multiblock_delta) && db_affected_rows() == 1) {
+    _block_rehash();
+    return TRUE;
+  }
+  else {
+    return FALSE;
+  }
+}
+
+/**
+ * Validate "Add Block Instance" form.
+ */
+function multiblock_add_form_validate($form, &$form_state) {
+  // Make sure we are getting a valid block to add.
+  if (!preg_match('/^.+\*\*\*MB\*\*\*.+$/', $form_state['values']['block'])) {
     form_set_error('block', t('Bad block module input, contact administrator'));
     return;
   }
-  //make sure the block and delta exist
-  $orig_block = multiblock_blockinfo_from_form($form_values['block']);
+  // Make sure the block and delta exist.
+  $orig_block = multiblock_blockinfo_from_form($form_state['values']['block']);
   if (!module_hook($orig_block['module'], 'block') ||
     !array_key_exists($orig_block['delta'], module_invoke($orig_block['module'], 'block', 'list'))) {
     form_set_error('block', t('Module or doesn\t exist, contact administrator'));
   }
 }
 
-/*
- * Add block instance to database from "Add Block Instance" form
+/**
+ * Add block instance to database from "Add Block Instance" form.
  */
-function multiblock_add_block_submit($form_id, $form_values) {
-  //create new delta for block instance
-  $delta = db_next_id('{multiblock}_delta');
-  //get the original block info
-  $orig_block = multiblock_blockinfo_from_form($form_values['block']);
-  //check whether this module is multiblock enabled
-  $mb_enabled = (int)(module_invoke($orig_block['module'], 'block', 'mb_enabled') == 'mb_enabled');
-  $sql = "INSERT INTO {multiblock}
-          (delta, title, module, orig_delta, multi_settings)
-          VALUES (%d, '%s', '%s', '%s', %d)";
-  db_query($sql, $delta, $form_values['title'], $orig_block['module'], $orig_block['delta'], $mb_enabled);
-  drupal_set_message(t('Block instance %instance created.', array('%instance' => $form_values['title'])));
+function multiblock_add_form_submit($form, &$form_state) {
+  // Get the original block info.
+  $orig_block = multiblock_blockinfo_from_form($form_state['values']['block']);
+  // Check whether this module is multiblock enabled.
+  $mb_enabled = (int) module_invoke($orig_block->module, 'block', 'mb_enabled') == 'mb_enabled';
+  // Create block instance information.
+  $orig_block = (object) $orig_block;
+  $instance = (object) array('title' => $form_state['values']['title'], 'mb_enabled' => $mb_enabled);
+  // Add the block instance.
+  multiblock_add($orig_block, $instance);
+  drupal_set_message(t('Block instance %instance created.', array('%instance' => $form_state['values']['title'])));
 }
 
-/*
- * Custom sort based on info element of array
+/**
+ * Custom sort based on info element of array.
  */
 function multiblock_block_sort($a, $b) {
   return strcmp($a['info'], $b['info']);
 }
 
-/*
- * Get the module and delta from the "Add Block Instance" block form element
+/**
+ * Get the module and delta from the "Add Block Instance" block form element.
  */
 function multiblock_blockinfo_from_form($form_value) {
   $matches = array();
   preg_match('/^(.+)\*\*\*MB\*\*\*(.+)$/', $form_value, $matches);
-  return array ('module' => $matches[1], 'delta' => $matches[2]);
+  return array('module' => $matches[1], 'delta' => $matches[2]);
 }
 
-/*
- * Get title of a block by its module and delta
+/**
+ * Get title of a block by its module and delta.
  */
 function multiblock_get_block_title($module, $delta) {
   $block_info = module_invoke($module, 'block', 'list');
   return $block_info[$delta]['info'];
 }
 
-/*
- * Theme function for the "Manage Block Instances" page
+/**
+ * Implementation of hook_theme().
+ */
+function multiblock_theme() {
+  return array(
+    'multiblock_general' => array(
+      'arguments' => array('add_block_form' => NULL, 'multiblocks' => NULL),
+    ),
+  );
+}
+
+/**
+ * Theme function for the "Manage Block Instances" page.
  */
 function theme_multiblock_general($add_block_form, $multiblocks) {
   $output = '';
   
-  $output .= '<p><h3>' . t('Add Instance') . '</h3>' . $add_block_form . '</p>';
+  $output .= '<p><h3>'. t('Add Instance') .'</h3>'. $add_block_form .'</p>';
   
-  $header = array (t('Title'), t('Original Block Title'), t('Original Module'), t('Original Delta'), t('Action'));
+  $header = array(t('Title'), t('Original Block Title'), t('Original Module'), t('Original Delta'), t('Action'));
   
   foreach ($multiblocks as $row) {
-    $delete_link = l(t('Delete'), 'multiblock/delete/'. $row->delta);
+    $delete_link = l(t('Delete'), 'admin/build/block/instances/delete/'. $row->delta);
     $title = multiblock_get_block_title($row->module, $row->orig_delta);
     $rows[] = array(check_plain($row->title), $title, $row->module, $row->orig_delta, $delete_link);
   }
   
-  $output .= '<p><h3>' . t('Manage Instances') . '</h3>' . theme('table', $header, $rows) . '</p>';
+  $output .= '<p><h3>'. t('Manage Instances') .'</h3>'. theme('table', $header, $rows) .'</p>';
   
   return $output;
 }
