@@ -184,7 +184,7 @@ function multiblock_add($original_block, $block_instance) {
   $sql = "INSERT INTO {multiblock}
           (title, module, orig_delta, multi_settings)
           VALUES ('%s', '%s', '%s', %d)";
-  $result = db_query($sql, $block_instance->title, $original_block->module, $original_block->delta, $block_instance->mb_enbabled);
+  $result = db_query($sql, $block_instance->title, $original_block->module, $original_block->delta, $block_instance->mb_enabled);
   return db_last_insert_id('multiblock', 'delta');
 }
 
