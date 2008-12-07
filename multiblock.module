@@ -226,7 +226,7 @@ function multiblock_add_form_submit($form, &$form_state) {
   // Get the original block info.
   $orig_block = multiblock_blockinfo_from_form($form_state['values']['block']);
   // Check whether this module is multiblock enabled.
-  $mb_enabled = (int) module_invoke($orig_block->module, 'block', 'mb_enabled') == 'mb_enabled';
+  $mb_enabled = (int) (module_invoke($orig_block['module'], 'block', 'mb_enabled') == 'mb_enabled');
   // Create block instance information.
   $orig_block = (object) $orig_block;
   $instance = (object) array('title' => $form_state['values']['title'], 'mb_enabled' => $mb_enabled);
