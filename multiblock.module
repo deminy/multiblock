@@ -215,7 +215,7 @@ function multiblock_add_form_validate($form, &$form_state) {
   $orig_block = multiblock_blockinfo_from_form($form_state['values']['block']);
   if (!module_hook($orig_block['module'], 'block') ||
     !array_key_exists($orig_block['delta'], module_invoke($orig_block['module'], 'block', 'list'))) {
-    form_set_error('block', t('Module or doesn\t exist, contact administrator'));
+    form_set_error('block', t('Module or delta doesn\'t exist, contact administrator'));
   }
 }
 
