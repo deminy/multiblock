@@ -275,15 +275,17 @@ function multiblock_theme() {
  */
 function theme_multiblock_general($add_block_form, $multiblocks) {
   $output = '';
+  $noyes = array('No', 'Yes');
   
   $output .= '<p><h3>'. t('Add Instance') .'</h3>'. $add_block_form .'</p>';
   
-  $header = array(t('Title'), t('Original Block Title'), t('Original Module'), t('Original Delta'), t('Action'));
+  $header = array(t('Title'), t('Original Block Title'), t('Original Module'), t('Enabled'), t('Original Delta'), t('Action'));
   
   foreach ($multiblocks as $row) {
     $delete_link = l(t('Delete'), 'admin/build/block/instances/delete/'. $row->delta);
     $title = multiblock_get_block_title($row->module, $row->orig_delta);
-    $rows[] = array(check_plain($row->title), $title, $row->module, $row->orig_delta, $delete_link);
+    $mb_enabled = $noyes[$row->multi_settings];
+    $rows[] = array(check_plain($row->title), $title, $row->module, $mb_enabled, $row->orig_delta, $delete_link);
   }
   
   $output .= '<p><h3>'. t('Manage Instances') .'</h3>'. theme('table', $header, $rows) .'</p>';
