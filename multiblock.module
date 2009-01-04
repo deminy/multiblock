@@ -93,13 +93,21 @@ function multiblock_call_block($delta, $op, $edit) {
  * Page callback for the "Manage Block Instances page".
  */
 function multiblock_general() {
+  if (func_num_args() && func_get_arg(0) == 'edit' && is_numeric($instance = func_get_arg(1))) {
+    $req_block = multiblock_get_block($instance);
+  }
   // Fetch blocks directly from modules using block.module function.
   $blocks = _block_rehash();
   // Sort blocks how we want them.
   usort($blocks, 'multiblock_block_sort');
 
   // Fetch "Add Instance" form.
-  $form = drupal_get_form('multiblock_add_form', $blocks);
+  if (isset($req_block)) {
+    $form = drupal_get_form('multiblock_add_form', $blocks, $req_block);
+  }
+  else {
+    $form = drupal_get_form('multiblock_add_form', $blocks);
+  }
 
   // Get an array of existing blocks.
   $multiblocks = multiblock_get_block(NULL, TRUE);
@@ -109,14 +117,18 @@ function multiblock_general() {
 /**
  * "Add Instance" form.
  */
-function multiblock_add_form($form_state, $blocks) {
+function multiblock_add_form(&$form_state, $blocks, $update = NULL) {
   $form = array();
   $form['title'] = array(
     '#type' => 'textfield',
     '#title' => t('Instance Title'),
     '#maxlength' => 256,
     '#required' => TRUE,
-  );
+    '#default_value' => ($update ? $update->title : NULL),
+    );
+  if ($update) {
+    $form['instance'] = array('#type' => 'value', '#value' => $update->delta);
+  }
   
   // Turn $blocks into form options of block types.
   // Remember we need the module and delta to be able to tell what kind of
@@ -137,7 +149,7 @@ function multiblock_add_form($form_state, $blocks) {
   );
   $form['submit'] = array(
     '#type' => 'submit',
-    '#value' => t('Add Instance'),
+    '#value' => $update ? t('Update Title'): t('Add Instance'),
   );
   return $form;
 }
@@ -215,7 +227,7 @@ function multiblock_add_form_validate($form, &$form_state) {
   $orig_block = multiblock_blockinfo_from_form($form_state['values']['block']);
   if (!module_hook($orig_block['module'], 'block') ||
     !array_key_exists($orig_block['delta'], module_invoke($orig_block['module'], 'block', 'list'))) {
-    form_set_error('block', t('Module or delta doesn\'t exist, contact administrator'));
+    form_set_error('block', t('Module or block doesn\'t exist, contact administrator'));
   }
 }
 
@@ -223,6 +235,12 @@ function multiblock_add_form_validate($form, &$form_state) {
  * Add block instance to database from "Add Block Instance" form.
  */
 function multiblock_add_form_submit($form, &$form_state) {
+  if (isset($form_state['values']['instance'])) {
+    db_query("UPDATE {multiblock} SET title='%s' WHERE delta=%d", $form_state['values']['title'], $form_state['values']['instance']);
+    $form_state['redirect'] = 'admin/build/block/instances';
+    return;
+  }
+
   // Get the original block info.
   $orig_block = multiblock_blockinfo_from_form($form_state['values']['block']);
   // Check whether this module is multiblock enabled.
@@ -275,17 +293,25 @@ function multiblock_theme() {
  */
 function theme_multiblock_general($add_block_form, $multiblocks) {
   $output = '';
-  $noyes = array('No', 'Yes');
+//  $noyes = array('No', 'Yes');
+  $noyes = array('<img src="/misc/watchdog-error.png" />', '<img src="/misc/watchdog-ok.png" />');
   
   $output .= '<p><h3>'. t('Add Instance') .'</h3>'. $add_block_form .'</p>';
   
-  $header = array(t('Title'), t('Original Block Title'), t('Original Module'), t('Enabled'), t('Original Delta'), t('Action'));
+  $header = array(t('Title'), t('Original Block Title'), t('Original Module'), t('MultiBlock Enabled'), t('Original Delta'), t('Action'));
   
   foreach ($multiblocks as $row) {
-    $delete_link = l(t('Delete'), 'admin/build/block/instances/delete/'. $row->delta);
+    $ops_link = l(t('Edit'), 'admin/build/block/instances/edit/'. $row->delta)
+      .' '. l(t('Delete'), 'admin/build/block/instances/delete/'. $row->delta);
     $title = multiblock_get_block_title($row->module, $row->orig_delta);
     $mb_enabled = $noyes[$row->multi_settings];
-    $rows[] = array(check_plain($row->title), $title, $row->module, $mb_enabled, $row->orig_delta, $delete_link);
+    $rows[] = array(
+      check_plain($row->title),
+      $title,
+      $row->module,
+      array('data' => $mb_enabled, 'align' => 'center'),
+      $row->orig_delta, $ops_link,
+      );
   }
   
   $output .= '<p><h3>'. t('Manage Instances') .'</h3>'. theme('table', $header, $rows) .'</p>';
