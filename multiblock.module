@@ -294,7 +294,7 @@ function multiblock_theme() {
 function theme_multiblock_general($add_block_form, $multiblocks) {
   $output = '';
 //  $noyes = array('No', 'Yes');
-  $noyes = array('<img src="/misc/watchdog-error.png" />', '<img src="/misc/watchdog-ok.png" />');
+  $noyes = array('misc/watchdog-error.png', 'misc/watchdog-ok.png');
   
   $output .= '<p><h3>'. t('Add Instance') .'</h3>'. $add_block_form .'</p>';
   
@@ -305,11 +305,15 @@ function theme_multiblock_general($add_block_form, $multiblocks) {
       .' '. l(t('Delete'), 'admin/build/block/instances/delete/'. $row->delta);
     $title = multiblock_get_block_title($row->module, $row->orig_delta);
     $mb_enabled = $noyes[$row->multi_settings];
+    $alt = t('Not Multiblock enabled');
+    if ($row->multi_settings) {
+      $alt = t('Multiblock enabled');
+    }
     $rows[] = array(
       check_plain($row->title),
       $title,
       $row->module,
-      array('data' => $mb_enabled, 'align' => 'center'),
+      array('data' => theme('image', $mb_enabled, $alt, $alt), 'align' => 'center'),
       $row->orig_delta, $ops_link,
       );
   }
