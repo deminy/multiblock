@@ -111,7 +111,7 @@ function multiblock_general() {
 
   // Get an array of existing blocks.
   $multiblocks = multiblock_get_block(NULL, TRUE);
-  return theme('multiblock_general', $form, $multiblocks);
+  return theme('multiblock_general', $form, $multiblocks, isset($req_block));
 }
 
 /**
@@ -149,7 +149,7 @@ function multiblock_add_form(&$form_state, $blocks, $update = NULL) {
   );
   $form['submit'] = array(
     '#type' => 'submit',
-    '#value' => $update ? t('Update Title'): t('Add Instance'),
+    '#value' => t('Save'),
   );
   return $form;
 }
@@ -291,12 +291,12 @@ function multiblock_theme() {
 /**
  * Theme function for the "Manage Block Instances" page.
  */
-function theme_multiblock_general($add_block_form, $multiblocks) {
+function theme_multiblock_general($add_block_form, $multiblocks, $edit = FALSE) {
   $output = '';
 //  $noyes = array('No', 'Yes');
   $noyes = array('misc/watchdog-error.png', 'misc/watchdog-ok.png');
   
-  $output .= '<p><h3>'. t('Add Instance') .'</h3>'. $add_block_form .'</p>';
+  $output .= '<p><h3>'. ($edit ? t('Edit Instance') : t('Add Instance')) .'</h3>'. $add_block_form .'</p>';
   
   $header = array(t('Title'), t('Original Block Title'), t('Original Module'), t('MultiBlock Enabled'), t('Original Delta'), t('Action'));
   
