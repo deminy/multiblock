@@ -129,24 +129,25 @@ function multiblock_add_form(&$form_state, $blocks, $update = NULL) {
   if ($update) {
     $form['instance'] = array('#type' => 'value', '#value' => $update->delta);
   }
-  
-  // Turn $blocks into form options of block types.
-  // Remember we need the module and delta to be able to tell what kind of
-  // blocks we're talking about. 
-  $options = array();
-  foreach ($blocks as $block) {
-    // Don't include multiblock module blocks in the list.
-    if ($block['module'] != 'multiblock') {
-      $options[$block['module'] .'***MB***'. $block['delta']] = $block['info'];
+  else {
+    // Turn $blocks into form options of block types.
+    // Remember we need the module and delta to be able to tell what kind of
+    // blocks we're talking about. 
+    $options = array();
+    foreach ($blocks as $block) {
+      // Don't include multiblock module blocks in the list.
+      if ($block['module'] != 'multiblock') {
+        $options[$block['module'] .'***MB***'. $block['delta']] = $block['info'];
+      }
     }
-  }
   
-  $form['block'] = array(
-    '#type' => 'select',
-    '#title' => t('Block type'),
-    '#options' => $options,
-    '#required' => TRUE,
-  );
+    $form['block'] = array(
+      '#type' => 'select',
+      '#title' => t('Block type'),
+      '#options' => $options,
+      '#required' => TRUE,
+    );
+  }
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Save'),
@@ -218,16 +219,18 @@ function multiblock_delete($multiblock_delta) {
  * Validate "Add Block Instance" form.
  */
 function multiblock_add_form_validate($form, &$form_state) {
-  // Make sure we are getting a valid block to add.
-  if (!preg_match('/^.+\*\*\*MB\*\*\*.+$/', $form_state['values']['block'])) {
-    form_set_error('block', t('Bad block module input, contact administrator'));
-    return;
-  }
-  // Make sure the block and delta exist.
-  $orig_block = multiblock_blockinfo_from_form($form_state['values']['block']);
-  if (!module_hook($orig_block['module'], 'block') ||
-    !array_key_exists($orig_block['delta'], module_invoke($orig_block['module'], 'block', 'list'))) {
-    form_set_error('block', t('Module or block doesn\'t exist, contact administrator'));
+  if (!isset($form_state['values']['instance'])) {
+    // Make sure we are getting a valid block to add.
+    if (!preg_match('/^.+\*\*\*MB\*\*\*.+$/', $form_state['values']['block'])) {
+      form_set_error('block', t('Bad block module input, contact administrator'));
+      return;
+    }
+    // Make sure the block and delta exist.
+    $orig_block = multiblock_blockinfo_from_form($form_state['values']['block']);
+    if (!module_hook($orig_block['module'], 'block') ||
+      !array_key_exists($orig_block['delta'], module_invoke($orig_block['module'], 'block', 'list'))) {
+      form_set_error('block', t('Module or block doesn\'t exist, contact administrator'));
+    }
   }
 }
 
