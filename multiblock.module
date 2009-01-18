@@ -35,7 +35,8 @@ function multiblock_block($op = 'list', $delta = 0, $edit = array()) {
     $blocks = multiblock_get_block(NULL);
     $list = array();
     foreach ($blocks as $block) {
-      $list[$block->delta] = array('info' => check_plain($block->title));
+//      $list[$block->delta] = array('info' => check_plain($block->title));
+      $list[$block->delta] = array('info' => $block->title);
     }
     return $list;
   }
@@ -79,11 +80,16 @@ function multiblock_call_block($delta, $op, $edit) {
     // If this block is multiblock enabled, send it the delta of the block we're using.
     if ($block_info->multi_settings == 1 ) {
       $edit['multiblock_delta'] = array(
-          '#type' => 'value',
-          '#value' => $block_info->delta,
-      );
+        '#type' => 'value',
+        '#value' => $block_info->delta,
+        );
     }
-    return module_invoke($block_info->module, 'block', $op, $block_info->orig_delta, $edit);
+    $block = module_invoke($block_info->module, 'block', $op, $block_info->orig_delta, $edit);
+//    if ($op == 'view') {
+//      $block['orig_module'] = $block_info->module;
+//      $block['orig_delta'] = $block_info->orig_delta;
+//    }
+//    return $block;
   }
   // No such multiblock, shouldn't ever happen.
   return;
@@ -287,8 +293,8 @@ function multiblock_theme() {
   return array(
     'multiblock_general' => array(
       'arguments' => array('add_block_form' => NULL, 'multiblocks' => NULL),
-    ),
-  );
+      ),
+    );
 }
 
 /**
