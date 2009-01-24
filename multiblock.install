@@ -1,5 +1,10 @@
 <?php
 // $Id$
+/**
+ * @file
+ * The Multiblock module allows and admin to define multiple instances
+ * of blocks provided by other modules.
+ */
 
 function multiblock_schema() {
   $schema = array();
@@ -54,6 +59,7 @@ function multiblock_install() {
 
 function multiblock_uninstall() {
   drupal_uninstall_schema('multiblock');
+  variable_del('multiblock_blocked');
 }
 
 /**
