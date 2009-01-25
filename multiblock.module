@@ -1,10 +1,5 @@
 <?php
 // $Id$
-/**
- * @file
- * The Multiblock module allows and admin to define multiple instances
- * of blocks provided by other modules.
- */
 
 /**
  * Implementation of hook_menu().
@@ -13,23 +8,13 @@ function multiblock_menu() {
   $items = array();
   $items['admin/build/block/instances'] = array(
     'title' => 'Instances',
-    'description' => 'Create and delete instances of blocks.',
+    'description' => t('Create and delete instances of blocks.'),
     'page callback' =>  'multiblock_general',
     'access callback' => 'user_access',
     'access arguments' => array('administer blocks'),
     'type' => MENU_LOCAL_TASK,
     'weight' => -1,
-    );
-  $items['admin/build/block/blocked_modules'] = array(
-    'title' => 'Blocked Modules',
-    'description' => 'Block modules from instance creation.',
-    'page callback' => 'drupal_get_form',
-    'page arguments' =>  array('multiblock_blocked_modules'),
-    'access callback' => 'user_access',
-    'access arguments' => array('administer site configuration'),
-    'type' => MENU_LOCAL_TASK,
-    'weight' => 3,
-    );
+  );
   $items['admin/build/block/instances/delete'] = array(
     'title' => 'Delete Block Instance',
     'page callback' => 'drupal_get_form',
@@ -37,7 +22,7 @@ function multiblock_menu() {
     'access callback' => 'user_access',
     'access arguments' => array('administer blocks'),
     'type' => MENU_CALLBACK,
-    );
+  );
   return $items;
 }
 
@@ -45,22 +30,19 @@ function multiblock_menu() {
  * Implementation of hook_block().
  */
 function multiblock_block($op = 'list', $delta = 0, $edit = array()) {
-  switch ($op) {
-    case 'mb_blocked':
-      return 'multiblock';
-
-    case 'list':
-      // Get all of the block instances that exist.
-      $blocks = multiblock_get_block(NULL);
-      $list = array();
-      foreach ($blocks as $block) {
-        $list[$block->delta] = array('info' => $block->title);
-      }
-      return $list;
-
-    // Any op besides list we want to dispatch the call to its respective module.
-    default:
-      return multiblock_call_block($delta, $op, $edit);
+  if ($op == 'list') {
+    // Get all of the block instances that exist.
+    $blocks = multiblock_get_block(NULL);
+    $list = array();
+    foreach ($blocks as $block) {
+//      $list[$block->delta] = array('info' => check_plain($block->title));
+      $list[$block->delta] = array('info' => $block->title);
+    }
+    return $list;
+  }
+  // Any op besides list we want to dispatch the call to its respective module.
+  else if ($op == 'view' || $op == 'configure' || $op == 'save') {
+    return multiblock_call_block($delta, $op, $edit);
   }
 }
 
@@ -103,11 +85,11 @@ function multiblock_call_block($delta, $op, $edit) {
         );
     }
     $block = module_invoke($block_info->module, 'block', $op, $block_info->orig_delta, $edit);
-    if ($op == 'view') {
-      $block['orig_module'] = $block_info->module;
-      $block['orig_delta'] = $block_info->orig_delta;
-    }
-    return $block;
+//    if ($op == 'view') {
+//      $block['orig_module'] = $block_info->module;
+//      $block['orig_delta'] = $block_info->orig_delta;
+//    }
+//    return $block;
   }
   // No such multiblock, shouldn't ever happen.
   return;
@@ -156,30 +138,26 @@ function multiblock_add_form(&$form_state, $blocks, $update = NULL) {
   else {
     // Turn $blocks into form options of block types.
     // Remember we need the module and delta to be able to tell what kind of
-    // blocks we're talking about.
-    $blocked_modules = variable_get('multiblock_blocked', array('multiblock'));
-    $auto_blocked = module_invoke_all('block', 'mb_blocked');
-    $blocked_modules = array_unique(array_merge($blocked_modules, $auto_blocked));
-
+    // blocks we're talking about. 
     $options = array();
     foreach ($blocks as $block) {
       // Don't include multiblock module blocks in the list.
-      if (!in_array(strtolower($block['module']), $blocked_modules)) {
+      if ($block['module'] != 'multiblock') {
         $options[$block['module'] .'***MB***'. $block['delta']] = $block['info'];
       }
     }
-
+  
     $form['block'] = array(
       '#type' => 'select',
       '#title' => t('Block type'),
       '#options' => $options,
       '#required' => TRUE,
-      );
+    );
   }
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Save'),
-    );
+  );
   return $form;
 }
 
@@ -352,44 +330,4 @@ function theme_multiblock_general($add_block_form, $multiblocks, $edit = FALSE) 
   $output .= '<p><h3>'. t('Manage Instances') .'</h3>'. theme('table', $header, $rows) .'</p>';
   
   return $output;
-}
-
-/**
- * Build a blocked modules list to prevent instance creation.
- */
-function multiblock_blocked_modules() {
-  $form = array();
-  $current = variable_get('multiblock_blocked', array('multiblock'));
-  $x = array_keys($current, 'multiblock');
-  unset ($current[$x[0]]);
-
-  $form['blocked'] = array(
-    '#type' => 'textarea',
-    '#rows' => 10,
-    '#description' => t('Add modules, one per line, that will not be shown in the "Add Instance" list.'),
-    '#default_value' => implode("\n", $current),
-    );
-
-  $auto_blocked = module_invoke_all('block', 'mb_blocked');
-  if ($auto_blocked) {
-    $form['blocked']['#description'] .= '<br />'. t('Note: The following modules are automatically blocked: @auto', array('@auto' => implode(', ', $auto_blocked)));
-  }
-
-  $form['submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Save'),
-    );
-  return $form;
-}
-
-/**
- * Process the blocked modules list.
- */
-function multiblock_blocked_modules_submit($form, $form_state) {
-  $blocked = preg_split('/(\r\n?|\n)/', $form_state['values']['blocked']);
-  $blocked[] = 'multiblock';
-  // Remove duplicates, empty lines, and excess spaces.
-  $blocked = array_map('trim', array_filter(array_unique($blocked)));
-  variable_set('multiblock_blocked', $blocked);
-  drupal_set_message(t('Configuration saved'), 'status');
 }
