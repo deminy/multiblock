@@ -89,7 +89,7 @@ function multiblock_call_block($delta, $op, $edit) {
 //      $block['orig_module'] = $block_info->module;
 //      $block['orig_delta'] = $block_info->orig_delta;
 //    }
-//    return $block;
+    return $block;
   }
   // No such multiblock, shouldn't ever happen.
   return;
