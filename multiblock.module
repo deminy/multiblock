@@ -54,7 +54,7 @@ function multiblock_block_save($delta = 0, $edit = array()) {
 }
 
 /**
- * Implements hook_block_view().
+ * Implements hook_block_configure().
  */
 function multiblock_block_configure($delta = 0, $edit = array()) {
   return multiblock_call_block($delta, 'configure', $edit);
@@ -100,7 +100,12 @@ function multiblock_call_block($delta, $op, $edit) {
         '#value' => $block_info->delta,
         );
     }
-    $block = module_invoke($block_info->module, 'block_'. $op, $block_info->orig_delta, $edit);
+    if ($block_info->multi_settings == 1 || $op == 'configure') {
+      $block = module_invoke($block_info->module, 'block_'. $op, $block_info->orig_delta, $edit);
+    }
+    else {
+      $block = module_invoke($block_info->module, 'block_'. $op, $block_info->orig_delta);
+    }
     return $block;
   }
   // No such multiblock, shouldn't ever happen.
