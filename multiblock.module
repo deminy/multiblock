@@ -2,18 +2,18 @@
 // $Id$
 
 /**
- * Implementation of hook_menu().
+ * Implements hook_menu().
  */
 function multiblock_menu() {
   $items = array();
   $items['admin/structure/block/instances'] = array(
     'title' => 'Instances',
-    'description' => t('Create and delete instances of blocks.'),
+    'description' => 'Create and delete instances of blocks.',
     'page callback' =>  'multiblock_general',
     'access callback' => 'user_access',
     'access arguments' => array('administer blocks'),
     'type' => MENU_LOCAL_TASK,
-    'weight' => -1,
+    'weight' => -15,
   );
   $items['admin/structure/block/instances/delete'] = array(
     'title' => 'Delete Block Instance',
@@ -27,7 +27,7 @@ function multiblock_menu() {
 }
 
 /**
- * Implements of hook_block_info()
+ * Implements hook_block_info().
  */
 function multiblock_block_info() {
   // Get all of the block instances that exist.
