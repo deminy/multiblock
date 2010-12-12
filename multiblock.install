@@ -48,11 +48,3 @@ function multiblock_schema() {
   return $schema;
 }
 
-function multiblock_install() {
-  drupal_install_schema('multiblock');
-}
-
-function multiblock_uninstall() {
-  drupal_uninstall_schema('multiblock');
-}
-
