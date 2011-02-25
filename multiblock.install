@@ -1,5 +1,4 @@
 <?php
-// $Id$
 
 function multiblock_schema() {
   $schema = array();
