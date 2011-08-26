@@ -236,6 +236,14 @@ function multiblock_delete($multiblock_delta) {
   $num_deleted = db_delete('multiblock')
     ->condition('delta', (int) $multiblock_delta)
     ->execute();
+  db_delete('block')
+    ->condition('module', 'multiblock')
+    ->condition('delta', (int) $multiblock_delta)
+    ->execute();
+  db_delete('block_role')
+    ->condition('module', 'multiblock')
+    ->condition('delta', (int) $multiblock_delta)
+    ->execute();
   if (ctype_digit($multiblock_delta) && $num_deleted) {
     _block_rehash();
     return TRUE;
