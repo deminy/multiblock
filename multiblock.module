@@ -99,7 +99,7 @@ function multiblock_call_block($delta, $op, $edit) {
         '#value' => $block_info->delta,
         );
     }
-    if ($block_info->multi_settings == 1 || $op == 'configure') {
+    if ($op == 'save') {
       $block = module_invoke($block_info->module, 'block_'. $op, $block_info->orig_delta, $edit);
     }
     else {
