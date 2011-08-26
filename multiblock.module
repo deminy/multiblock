@@ -233,9 +233,11 @@ function multiblock_add($original_block, $block_instance) {
  * Delete a multiblock instance.
  */
 function multiblock_delete($multiblock_delta) {
+  // Remove instance from multiblock's storage.
   $num_deleted = db_delete('multiblock')
     ->condition('delta', (int) $multiblock_delta)
     ->execute();
+  // Remove block instances from the block modules tables to avoid orphans.
   db_delete('block')
     ->condition('module', 'multiblock')
     ->condition('delta', (int) $multiblock_delta)
