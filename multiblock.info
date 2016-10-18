@@ -1,4 +1,4 @@
 name = MultiBlock
 description = Allows the creation of multiple instances of blocks
 core = 7.x
-dependencies[] = block
+dependencies[] = drupal:block
