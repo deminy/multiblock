@@ -2,3 +2,4 @@ name = MultiBlock
 description = Allows the creation of multiple instances of blocks
 core = 7.x
 dependencies[] = drupal:block
+dependencies[] = drupal:system (>=7.40)
